@@ -17,7 +17,6 @@ public class UnitTest {
             }
         };
         server.StartAsync();
-        await Task.Delay(500);
 
         Client client = new Client();
         client.Connected += async (o) => {
