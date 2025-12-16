@@ -10,25 +10,17 @@ public class UnitTest {
         CancellationTokenSource cts = new();
 
         Server server = new Server(12345);
-        server.PayloadReceived += async (o, e) => {
-            if (e.Payloads.Length == 1) {
-                if (e.Payloads[0].Type == Payload.PayloadType.Text) {
-                    await server.SendPayloadsAsync(e.Id, [ new(e.Payloads[0].Name, e.Payloads[0].TextData!) ]);
-                }
-            }
-        };
+        server.PayloadReceived += async (o, e) => await server.SendPayloadsAsync(e.Id, e.Payloads);
         server.StartAsync();
 
         Client client = new Client();
-        client.Connected += async (o) => {
-            await client.SendPayloadsAsync([ echoPayload ]);
-        };
         client.PayloadReceived += (o, e) => {
             if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
                 echoed = true;
                 cts.Cancel();
             }
         };
+        client.Connected += async (o) => await client.SendPayloadsAsync([echoPayload]);
         await client.ConnectAsync(IPAddress.Loopback, 12345);
 
         try { await Task.Delay(1000, cts.Token); } catch (TaskCanceledException) when (cts.IsCancellationRequested) {}
