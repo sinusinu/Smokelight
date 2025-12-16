@@ -46,12 +46,12 @@ public class Server : IDisposable {
 
     // functions
     public void StartAsync() {
+        listening = true;
+        listener.Start();
         _ = InternalStartAsync();
     }
 
     private async Task InternalStartAsync() {
-        listening = true;
-        listener.Start();
         while (listening) {
             TcpClient? rclient;
             try {
