@@ -23,6 +23,8 @@ public class Client : IDisposable {
     private NetworkStream? stream;
     internal bool run;
 
+    private CancellationTokenSource ctsSockRead = new();
+
     // ctor
     public Client() {
         client = new TcpClient();
@@ -44,16 +46,12 @@ public class Client : IDisposable {
             while (run) {
                 payloads = null;
 
-                if (!client.Connected) {
-                    run = false;
+                payloads = await Payload.TryUnpackFromStream(stream, ctsSockRead.Token);
+                if (payloads is not null) {
+                    PayloadReceived?.Invoke(this, new(payloads));
+                } else {
+                    // TODO: handle socket error and data error separately - only close socket on socket error
                     break;
-                }
-
-                if (stream.DataAvailable) {
-                    // return value could be used to do proper a error handling later
-                    payloads = await Payload.TryUnpackFromStream(stream);
-                    
-                    if (payloads is not null) PayloadReceived?.Invoke(this, new(payloads));
                 }
 
                 await Task.Yield();
@@ -76,7 +74,8 @@ public class Client : IDisposable {
     }
 
     public async Task DisconnectAsync() {
-        if (client.Connected) client.Close();
+        ctsSockRead.Cancel();
+        client.Close();
     }
 
     public void Dispose() {

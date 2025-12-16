@@ -35,6 +35,8 @@ public class Server : IDisposable {
     // variables
     private TcpListener listener;
     private bool listening = false;
+
+    private CancellationTokenSource ctsSockRead = new();
     
     private ConcurrentDictionary<Guid, ServerClient> connectedClients = new();
 
@@ -74,16 +76,12 @@ public class Server : IDisposable {
         while (client.run) {
             payloads = null;
 
-            if (!client.ClientTcpClient.Connected) {
-                client.run = false;
+            payloads = await Payload.TryUnpackFromStream(client.Stream, ctsSockRead.Token);
+            if (payloads is not null) {
+                PayloadReceived?.Invoke(this, new(clientId, payloads));
+            } else {
+                // TODO: handle socket error and data error separately - only close socket on socket error
                 break;
-            }
-
-            if (client.Stream.DataAvailable) {
-                // return value could be used to do proper a error handling later
-                payloads = await Payload.TryUnpackFromStream(client.Stream);
-
-                if (payloads is not null) PayloadReceived?.Invoke(this, new(clientId, payloads));
             }
 
             await Task.Yield();
@@ -128,6 +126,8 @@ public class Server : IDisposable {
     public async Task StopAsync() {
         listening = false;
         listener.Stop();
+
+        ctsSockRead.Cancel();
 
         if (connectedClients.Count > 0) {
             List<Task> disconnectTasks = new();

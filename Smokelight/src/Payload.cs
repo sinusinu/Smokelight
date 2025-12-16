@@ -108,54 +108,47 @@ public class Payload : IEquatable<Payload> {
         return ret;
     }
 
-    internal static async Task<Payload[]?> TryUnpackFromStream(NetworkStream stream) {
-        if (stream.DataAvailable) {
-            try {
-                byte[] magic = new byte[4];
-                var magicRead = await stream.ReadAsync(magic);
-                if (magicRead != 4 || !"SLPK"u8.SequenceEqual(magic)) {
-                    return null;
-                }
-
-                byte[] buf = new byte[4];
-                await stream.ReadExactlyAsync(buf);
-                int version = BitConverter.ToInt32(buf);
-                if (version != 0) {
-                    return null;
-                }
-                await stream.ReadExactlyAsync(buf);
-                int totalLength = BitConverter.ToInt32(buf);
-                await stream.ReadExactlyAsync(buf);
-                int payloadCount = BitConverter.ToInt32(buf);
-
-                byte[] remainingBuf = new byte[totalLength - 16];
-                int remainingRead = await stream.ReadAsync(remainingBuf);
-                if (remainingRead != totalLength - 16) {
-                    return null;
-                }
-
-                var ret = new Payload[payloadCount];
-
-                using (var ms = new MemoryStream(remainingBuf))
-                using (var br = new BinaryReader(ms)) {
-                    for (int i = 0; i < payloadCount; i++) {
-                        int payloadType = br.ReadInt32();
-                        int payloadNameLength = br.ReadInt32();
-                        byte[] payloadName = br.ReadBytes(payloadNameLength);
-                        int payloadDataLength = br.ReadInt32();
-                        byte[] payloadData = br.ReadBytes(payloadDataLength);
-                        ret[i] = new Payload(Encoding.UTF8.GetString(payloadName), (PayloadType)payloadType, payloadData);
-                    }
-                    if (br.ReadByte() != (byte)0) {
-                        return null;
-                    }
-                }
-
-                return ret;
-            } catch {
+    internal static async Task<Payload[]?> TryUnpackFromStream(NetworkStream stream, CancellationToken cancellationToken = default) {
+        try {
+            byte[] magic = new byte[4];
+            await stream.ReadExactlyAsync(magic, cancellationToken);
+            if (!"SLPK"u8.SequenceEqual(magic)) {
                 return null;
             }
-        } else {
+
+            byte[] buf = new byte[4];
+            await stream.ReadExactlyAsync(buf, cancellationToken);
+            int version = BitConverter.ToInt32(buf);
+            if (version != 0) {
+                return null;
+            }
+            await stream.ReadExactlyAsync(buf, cancellationToken);
+            int totalLength = BitConverter.ToInt32(buf);
+            await stream.ReadExactlyAsync(buf, cancellationToken);
+            int payloadCount = BitConverter.ToInt32(buf);
+
+            byte[] remainingBuf = new byte[totalLength - 16];
+            await stream.ReadExactlyAsync(remainingBuf, cancellationToken);
+
+            var ret = new Payload[payloadCount];
+
+            using (var ms = new MemoryStream(remainingBuf))
+            using (var br = new BinaryReader(ms)) {
+                for (int i = 0; i < payloadCount; i++) {
+                    int payloadType = br.ReadInt32();
+                    int payloadNameLength = br.ReadInt32();
+                    byte[] payloadName = br.ReadBytes(payloadNameLength);
+                    int payloadDataLength = br.ReadInt32();
+                    byte[] payloadData = br.ReadBytes(payloadDataLength);
+                    ret[i] = new Payload(Encoding.UTF8.GetString(payloadName), (PayloadType)payloadType, payloadData);
+                }
+                if (br.ReadByte() != (byte)0) {
+                    return null;
+                }
+            }
+
+            return ret;
+        } catch {
             return null;
         }
     }
