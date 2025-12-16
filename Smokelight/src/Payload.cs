@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Text;
 
@@ -9,33 +10,32 @@ public class Payload : IEquatable<Payload> {
     internal PayloadType type;
     internal string name;
     internal byte[] data;
+    internal string? textData;
 
     public PayloadType Type => type;
     public string Name => name;
-    public string? TextData {
-        get {
-            if (type == PayloadType.Binary) return null;
-            return Encoding.UTF8.GetString(data);
-        }
-    }
+    public string? TextData => textData;
     public byte[] BinaryData => data;
 
     public Payload(string name, string text) {
         this.name = name;
         type = PayloadType.Text;
         data = Encoding.UTF8.GetBytes(text);
+        textData = text;
     }
 
     public Payload(string name, Span<byte> binary) {
         this.name = name;
         type = PayloadType.Binary;
         data = binary.ToArray();
+        textData = null;
     }
 
     internal Payload(string name, PayloadType type, byte[] data) {
         this.name = name;
         this.type = type;
         this.data = data;
+        textData = type == PayloadType.Text ? Encoding.UTF8.GetString(data) : null;
     }
 
     /*
