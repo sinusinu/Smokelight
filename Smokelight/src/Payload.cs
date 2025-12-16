@@ -12,7 +12,10 @@ public class Payload : IEquatable<Payload> {
     internal byte[] data;
     internal string? textData;
 
-    public PayloadType Type => type;
+    [MemberNotNullWhen(true, nameof(TextData))]
+    public bool IsText => type == PayloadType.Text;
+    public bool IsBinary => type == PayloadType.Binary;
+
     public string Name => name;
     public string? TextData => textData;
     public byte[] BinaryData => data;
