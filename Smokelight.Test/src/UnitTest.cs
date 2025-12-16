@@ -20,7 +20,7 @@ public class UnitTest {
                 cts.Cancel();
             }
         };
-        client.Connected += async (o) => await client.SendPayloadsAsync([echoPayload]);
+        client.Connected += async (o) => await client.SendPayloadAsync(echoPayload);
         await client.ConnectAsync(IPAddress.Loopback, 12345);
 
         try { await Task.Delay(1000, cts.Token); } catch (TaskCanceledException) when (cts.IsCancellationRequested) {}

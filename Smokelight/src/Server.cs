@@ -95,6 +95,10 @@ public class Server : IDisposable {
         client.Dispose();
     }
 
+    public async Task SendPayloadAsync(Guid clientId, Payload payload) {
+        await SendPayloadsAsync(clientId, [ payload ]);
+    }
+
     public async Task SendPayloadsAsync(Guid clientId, Payload[] payloads) {
         if (!connectedClients.TryGetValue(clientId, out var targetClient)) {
             throw new InvalidOperationException($"Client with GUID {clientId} does not exist");
@@ -102,6 +106,10 @@ public class Server : IDisposable {
 
         byte[] packedPayloads = Payload.Pack(payloads);
         await InternalSendAsync(targetClient, packedPayloads);
+    }
+
+    public async Task BroadcastPayloadAsync(Payload payload) {
+        await BroadcastPayloadsAsync([ payload ]);
     }
 
     public async Task BroadcastPayloadsAsync(Payload[] payloads) {

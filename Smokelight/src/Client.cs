@@ -64,6 +64,10 @@ public class Client : IDisposable {
         Disconnected?.Invoke(this);
     }
 
+    public async Task SendPayloadAsync(Payload payload) {
+        await SendPayloadsAsync([ payload ]);
+    }
+
     public async Task SendPayloadsAsync(Payload[] payloads) {
         if (!client.Connected || stream is null || !stream.CanWrite) throw new InvalidOperationException("Client is not connected");
         
