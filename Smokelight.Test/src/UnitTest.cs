@@ -24,9 +24,7 @@ public class UnitTest {
             await client.SendPayloadsAsync([ echoPayload ]);
         };
         client.PayloadReceived += (o, e) => {
-            if (e.Payloads.Length == 1 &&
-                e.Payloads[0].Name == echoPayload.Name && e.Payloads[0].TextData == echoPayload.TextData)
-                echoed = true;
+            if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) echoed = true;
         };
         await client.ConnectAsync(IPAddress.Loopback, 12345);
 
