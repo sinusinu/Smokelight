@@ -9,11 +9,11 @@ public class UnitTest {
         Payload echoPayload = new("echo", "hello world");
         CancellationTokenSource cts = new();
 
-        Server server = new Server(12345);
+        using Server server = new Server(12345);
         server.PayloadReceived += async (o, e) => await server.SendPayloadsAsync(e.Id, e.Payloads);
         server.StartAsync();
 
-        Client client = new Client();
+        using Client client = new Client();
         client.PayloadReceived += (o, e) => {
             if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
                 echoed = true;
