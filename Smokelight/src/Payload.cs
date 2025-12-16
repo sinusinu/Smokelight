@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Smokelight;
 
-public class Payload {
+public class Payload : IEquatable<Payload> {
     public enum PayloadType : int { Text = 0, Binary = 1, }
 
     internal PayloadType type;
@@ -159,4 +159,25 @@ public class Payload {
             return null;
         }
     }
+
+    public override bool Equals(object? obj) => this.Equals(obj as Payload);
+
+    public bool Equals(Payload? p) {
+        if (p is null) return false;
+        if (Object.ReferenceEquals(this, p)) return true;
+        if (this.GetType() != p.GetType()) return false;
+
+        return (this.name == p.name) && (this.type == p.type) && data.SequenceEqual(p.data);
+    }
+
+    public override int GetHashCode() {
+        return (name, data).GetHashCode();
+    }
+
+    public static bool operator ==(Payload lhs, Payload rhs) {
+        if (lhs is null) if (rhs is null) return true; else return false;
+        return lhs.Equals(rhs);
+    }
+
+    public static bool operator !=(Payload lhs, Payload rhs) => !(lhs == rhs);
 }
