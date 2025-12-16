@@ -28,9 +28,10 @@ server.ClientDisconnected += (o, e) => {
 server.PayloadReceived += (o, e) => {
     Console.WriteLine($"{e.Payloads.Length} payload(s) received from {e.Id}");
     for (int i = 0; i < e.Payloads.Length; i++) {
-        Console.WriteLine($"Payload {i}: {e.Payloads[i].Name} / {e.Payloads[i].Type}");
-        if (e.Payloads[i].Type == Payload.PayloadType.Text) Console.WriteLine($"Payload {i} Content: {e.Payloads[i].TextData}");
-        else Console.WriteLine($"Payload {i} Content: {e.Payloads[i].BinaryData.Length} byte(s) binary blob");
+        var payload = e.Payloads[i];
+        Console.WriteLine($"Payload {i}: {payload.Name} / {(payload.IsText ? "Text" : "Binary")}");
+        if (payload.IsText) Console.WriteLine($"Payload {i} Content: {payload.TextData}");
+        else /* if (payload.IsBinary) */ Console.WriteLine($"Payload {i} Content: {payload.BinaryData.Length} byte(s) binary blob");
     }
 };
 
@@ -38,10 +39,13 @@ server.PayloadReceived += (o, e) => {
 server.StartAsync();
 
 // send a text payload to a client
-await server.SendPayloadsAsync(someClientId, [ new("test", "hello") ]);
+await server.SendPayloadAsync(someClientId, new("alert", "something"));
 
 // send a binary payload to a client
-await server.SendPayloadsAsync(someClientId, [ new("sig", [ 0x68, 0x65, 0x6C, 0x6C, 0x6F, ]) ]);
+await server.SendPayloadAsync(someClientId, new("attachment", [ 0x68, 0x65, 0x6C, 0x6C, 0x6F, ]));
+
+// send multiple payloads to a client
+await server.SendPayloadsAsync(someClientId, [ new("alert", "something"), new("attachment", [ 0x68, 0x65, 0x6C, 0x6C, 0x6F, ]) ]);
 
 // send multiple payloads to all clients connected
 await server.BroadcastPayloadsAsync([ new("alert", "something"), new("attachment", [ 0x68, 0x65, 0x6C, 0x6C, 0x6F, ]) ]);
@@ -61,9 +65,10 @@ client.Disconnected += (o) => {};
 client.PayloadReceived += (o, e) => {
     Console.WriteLine($"{e.Payloads.Length} payload(s) received");
     for (int i = 0; i < e.Payloads.Length; i++) {
-        Console.WriteLine($"Payload {i}: {e.Payloads[i].Name} / {e.Payloads[i].Type}");
-        if (e.Payloads[i].Type == Payload.PayloadType.Text) Console.WriteLine($"Payload {i} Content: {e.Payloads[i].TextData}");
-        else Console.WriteLine($"Payload {i} Content: {e.Payloads[i].BinaryData.Length} byte(s) binary blob");
+        var payload = e.Payloads[i];
+        Console.WriteLine($"Payload {i}: {payload.Name} / {(payload.IsText ? "Text" : "Binary")}");
+        if (payload.IsText) Console.WriteLine($"Payload {i} Content: {payload.TextData}");
+        else /* if (payload.IsBinary) */ Console.WriteLine($"Payload {i} Content: {payload.BinaryData.Length} byte(s) binary blob");
     }
 };
 
@@ -71,7 +76,7 @@ client.PayloadReceived += (o, e) => {
 await client.ConnectAsync(IPAddress.Loopback, 12345);
 
 // send a payload to server
-await client.SendPayloadsAsync([ new("test", "hello") ]);
+await client.SendPayloadAsync(new("alert", "something"));
 
 // disconnect from server
 await client.DisconnectAsync();
