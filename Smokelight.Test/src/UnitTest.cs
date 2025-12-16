@@ -7,6 +7,7 @@ public class UnitTest {
     public async Task BasicEchoTest() {
         bool echoed = false;
         Payload echoPayload = new("echo", "hello world");
+        CancellationTokenSource cts = new();
 
         Server server = new Server(12345);
         server.PayloadReceived += async (o, e) => {
@@ -23,11 +24,14 @@ public class UnitTest {
             await client.SendPayloadsAsync([ echoPayload ]);
         };
         client.PayloadReceived += (o, e) => {
-            if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) echoed = true;
+            if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
+                echoed = true;
+                cts.Cancel();
+            }
         };
         await client.ConnectAsync(IPAddress.Loopback, 12345);
 
-        await Task.Delay(1000);
+        try { await Task.Delay(1000, cts.Token); } catch (TaskCanceledException) when (cts.IsCancellationRequested) {}
 
         Assert.True(echoed);
     }
