@@ -42,7 +42,7 @@ public class UnitTest {
         Random random = new();
         int[] randomNumbers = { random.Next() % 100, random.Next() % 100, random.Next() % 100 };
 
-        Server server = new Server(port);
+        using Server server = new Server(port);
         server.PayloadReceived += (o, e) => {
             int receivedNumber = BitConverter.ToInt32(e.Payloads[0].BinaryData);
             lock (sumLock) {
@@ -53,11 +53,11 @@ public class UnitTest {
         };
         server.StartAsync();
 
-        Client? clientOne = new Client();
+        using Client clientOne = new Client();
         clientOne.Connected += async (o) => await clientOne.SendPayloadAsync(new("number", BitConverter.GetBytes(randomNumbers[0])));
-        Client? clientTwo = new Client();
+        using Client clientTwo = new Client();
         clientTwo.Connected += async (o) => await clientTwo.SendPayloadAsync(new("number", BitConverter.GetBytes(randomNumbers[1])));
-        Client? clientThree = new Client();
+        using Client clientThree = new Client();
         clientThree.Connected += async (o) => await clientThree.SendPayloadAsync(new("number", BitConverter.GetBytes(randomNumbers[2])));
         
         Task[] connectTasks = {
@@ -70,15 +70,9 @@ public class UnitTest {
         try { await Task.Delay(1000, cts.Token); } catch (TaskCanceledException) when (cts.IsCancellationRequested) {}
         
         await clientOne.DisconnectAsync();
-        clientOne.Dispose();
-        clientOne = null;
         await clientTwo.DisconnectAsync();
-        clientTwo.Dispose();
-        clientTwo = null;
         await clientThree.DisconnectAsync();
-        clientThree.Dispose();
-        clientThree = null;
-
+        
         await server.StopAsync();
 
         Assert.True(recvCount == 3);
@@ -91,11 +85,11 @@ public class UnitTest {
         Payload echoPayload = new("echo", "hello world");
         CancellationTokenSource[] cts = { new(), new(), new() };
 
-        Server server = new Server(port);
+        using Server server = new Server(port);
         server.PayloadReceived += async (o, e) => await server.SendPayloadsAsync(e.Id, e.Payloads);
         server.StartAsync();
 
-        Client? clientOne = new Client();
+        using Client clientOne = new Client();
         clientOne.PayloadReceived += (o, e) => {
             if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
                 echoed[0] = true;
@@ -106,10 +100,8 @@ public class UnitTest {
         await clientOne.ConnectAsync(IPAddress.Loopback, port);
         try { await Task.Delay(1000, cts[0].Token); } catch (TaskCanceledException) when (cts[0].IsCancellationRequested) {}
         await clientOne.DisconnectAsync();
-        clientOne.Dispose();
-        clientOne = null;
 
-        Client? clientTwo = new Client();
+        using Client clientTwo = new Client();
         clientTwo.PayloadReceived += (o, e) => {
             if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
                 echoed[1] = true;
@@ -120,10 +112,8 @@ public class UnitTest {
         await clientTwo.ConnectAsync(IPAddress.Loopback, port);
         try { await Task.Delay(1000, cts[1].Token); } catch (TaskCanceledException) when (cts[1].IsCancellationRequested) {}
         await clientTwo.DisconnectAsync();
-        clientTwo.Dispose();
-        clientTwo = null;
 
-        Client? clientThree = new Client();
+        using Client clientThree = new Client();
         clientThree.PayloadReceived += (o, e) => {
             if (e.Payloads.Length == 1 && echoPayload == e.Payloads[0]) {
                 echoed[2] = true;
@@ -134,8 +124,6 @@ public class UnitTest {
         await clientThree.ConnectAsync(IPAddress.Loopback, port);
         try { await Task.Delay(1000, cts[2].Token); } catch (TaskCanceledException) when (cts[2].IsCancellationRequested) {}
         await clientThree.DisconnectAsync();
-        clientThree.Dispose();
-        clientThree = null;
 
         await server.StopAsync();
 
