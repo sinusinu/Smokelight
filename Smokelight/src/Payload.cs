@@ -38,7 +38,11 @@ public class Payload : IEquatable<Payload> {
         this.name = name;
         this.type = type;
         this.data = data;
-        textData = type == PayloadType.Text ? Encoding.UTF8.GetString(data) : null;
+        try {
+            textData = type == PayloadType.Text ? Encoding.UTF8.GetString(data) : null;
+        } catch (ArgumentException e) {
+            throw new InvalidDataException("Text payload contains an illegal UTF-8 sequence", e);
+        }
     }
 
     /*
