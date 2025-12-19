@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
+using System.Numerics;
 using System.Text;
 
 namespace Smokelight;
@@ -108,7 +109,7 @@ public class Payload : IEquatable<Payload> {
             bw.Write(payloads[i].data);
         }
 
-        // null terminate
+        // terminator
         bw.Write('\0');
 
         byte[] ret = ms.ToArray();
@@ -118,24 +119,44 @@ public class Payload : IEquatable<Payload> {
     internal static async Task<Payload[]?> TryUnpackFromStream(NetworkStream stream, CancellationToken cancellationToken = default) {
         try {
             byte[] magic = new byte[4];
-            await stream.ReadExactlyAsync(magic, cancellationToken);
+            try {
+                await stream.ReadExactlyAsync(magic, cancellationToken);
+            } catch (EndOfStreamException) {
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (missing magic)");
+            }
             if (!"SLPK"u8.SequenceEqual(magic)) {
-                return null;
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (invalid magic)");
             }
 
             byte[] buf = new byte[4];
-            await stream.ReadExactlyAsync(buf, cancellationToken);
+            try {
+                await stream.ReadExactlyAsync(buf, cancellationToken);
+            } catch (EndOfStreamException) {
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (missing version)");
+            }
             int version = BitConverter.ToInt32(buf);
             if (version != 0) {
-                return null;
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (unknown version)");
             }
-            await stream.ReadExactlyAsync(buf, cancellationToken);
+            try {
+                await stream.ReadExactlyAsync(buf, cancellationToken);
+            } catch (EndOfStreamException) {
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (missing total length)");
+            }
             int totalLength = BitConverter.ToInt32(buf);
-            await stream.ReadExactlyAsync(buf, cancellationToken);
+            try {
+                await stream.ReadExactlyAsync(buf, cancellationToken);
+            } catch (EndOfStreamException) {
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (missing payload count)");
+            }
             int payloadCount = BitConverter.ToInt32(buf);
 
             byte[] remainingBuf = new byte[totalLength - 16];
-            await stream.ReadExactlyAsync(remainingBuf, cancellationToken);
+            try {
+                await stream.ReadExactlyAsync(remainingBuf, cancellationToken);
+            } catch (EndOfStreamException) {
+                throw new InvalidPayloadException("Not a vaild Smokelight payload (incomplete payload)");
+            }
 
             var ret = new Payload[payloadCount];
 
@@ -150,14 +171,31 @@ public class Payload : IEquatable<Payload> {
                     ret[i] = new Payload(Encoding.UTF8.GetString(payloadName), (PayloadType)payloadType, payloadData);
                 }
                 if (br.ReadByte() != (byte)0) {
-                    return null;
+                    throw new InvalidPayloadException("Not a vaild Smokelight payload (missing terminator)");
                 }
             }
 
             return ret;
-        } catch {
+        } catch (OperationCanceledException) {
+            return null;
+        } catch (EndOfStreamException) {
+            return null;
+        } catch (ObjectDisposedException) {
+            return null;
+        } catch (SocketException) {
+            return null;
+        } catch (InvalidPayloadException) {
+            return null;
+        } catch (Exception) {
+            //Console.WriteLine(e);
             return null;
         }
+    }
+
+    public class InvalidPayloadException : Exception {
+        public InvalidPayloadException() {}
+        public InvalidPayloadException(string message) : base(message) {}
+        public InvalidPayloadException(string message, Exception inner) : base(message, inner) {}
     }
 
     public override bool Equals(object? obj) => this.Equals(obj as Payload);
